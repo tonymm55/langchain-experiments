@@ -10,22 +10,23 @@ from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, AIMessage, ChatMessage
 
 # --------------------------------------------------------------
-# Ask ChatGPT a Question
+# 1. Ask ChatGPT a Question
 # --------------------------------------------------------------
 
-completion = client.chat.completions.create(model="gpt-3.5-turbo-0613",
-messages=[
-    {
-        "role": "user",
-        "content": "What are your hours of business?",
-    },
+completion = client.chat.completions.create(
+    model="gpt-3.5-turbo-0613",
+    messages=[
+        {
+            "role": "user",
+            "content": "What are your hours of business?",
+        },
 ])
 
-output = completion.choices[0].message.content
-print(output)
+response = completion.choices[0].message.content
+print(response)
 
 # --------------------------------------------------------------
-# Use OpenAI’s Function Calling Feature
+# 2. Use OpenAI’s Function Calling Feature
 # --------------------------------------------------------------
 
 function_descriptions = [
@@ -64,11 +65,11 @@ function_call="auto")
 # It automatically fills the arguments with correct info based on the prompt
 # Note: the function does not exist yet, so ChatGPT output will be wrong!
 
-output = completion.choices[0].message
-print(output)
+response = completion.choices[0].message
+print(response)
 
 # --------------------------------------------------------------
-# Add a Function
+# 3. Add a Function
 # --------------------------------------------------------------
 
 def get_business_hours(day=None):
@@ -95,19 +96,19 @@ def get_business_hours(day=None):
   
 office_hours = get_business_hours()
 
-# Use the LLM output to manually call the function
-# The json.loads function converts the string to a Python object
+# Use the LLM output from above to manually call the function
+# The json.loads function converts the string to a Python dictionary
 
-monday = json.loads(output.function_call.arguments).get("open")
-params = json.loads(output.function_call.arguments)
+day = json.loads(response.function_call.arguments).get("day")
+params = json.loads(response.function_call.arguments)
 type(params)
 
-print(monday)
+print(day)
 print(params)
 
 # Call the function with arguments
 
-chosen_function = eval(output.function_call.name)
+chosen_function = eval(response.function_call.name)
 office_hours=chosen_function()
 print(office_hours)
 
@@ -132,7 +133,7 @@ def is_office_open():
 print(is_office_open())
 
 # --------------------------------------------------------------
-# Add function result to the prompt for a final answer
+# 4. Add function result to the prompt for a final answer
 # --------------------------------------------------------------
 
 # The key is to add the function output back to the messages with role: function
@@ -157,7 +158,7 @@ else:
 print("Completion request:")
 print({
     "role": "function",
-    "name": output.function_call.name,
+    "name": response.function_call.name,
     "content": office_hours
 })
 
@@ -166,7 +167,7 @@ second_completion = client.chat.completions.create(
     model="gpt-3.5-turbo-0613",
     messages=[
         {"role": "user", "content": user_prompt},
-        {"role": "function", "name": output.function_call.name, "content": office_hours},
+        {"role": "function", "name": response.function_call.name, "content": office_hours},
     ],
     functions=function_descriptions,
 )
@@ -192,6 +193,11 @@ print("Saturday office hours:", saturday_hours)
 print("Testing for Sunday:")
 sunday_hours = get_business_hours("Sunday")
 print("Sunday office hours:", sunday_hours)
+
+# Test case 3: Sunday
+print("Testing for Sunday:")
+wednesday_hours = get_business_hours("Wednesday")
+print("Wednesday office hours:", wednesday_hours)
 
 # --------------------------------------------------------------
 # Include Multiple Functions
@@ -219,8 +225,8 @@ function_descriptions_multiple = [
         },
     },
     {
-        "name": "book_flight",
-        "description": "Book a flight based on flight information",
+        "name": "select_car",
+        "description": "TBC",
         "parameters": {
             "type": "object",
             "properties": {
