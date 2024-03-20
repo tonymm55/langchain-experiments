@@ -1,6 +1,3 @@
-# --------------------------------------------------------------
-# Import Modules
-# --------------------------------------------------------------
 import os
 import json
 from openai import OpenAI
@@ -11,9 +8,6 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 load_dotenv()
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, AIMessage, ChatMessage
-
-
-
 
 # --------------------------------------------------------------
 # Ask ChatGPT a Question
@@ -68,7 +62,7 @@ completion = client.chat.completions.create(
 function_call="auto")
 
 # It automatically fills the arguments with correct info based on the prompt
-# Note: the function does not exist yet, so output will be wrong!
+# Note: the function does not exist yet, so ChatGPT output will be wrong!
 
 output = completion.choices[0].message
 print(output)
@@ -77,8 +71,8 @@ print(output)
 # Add a Function
 # --------------------------------------------------------------
 
-def get_business_hours():
-    # Define office hours
+def get_business_hours(day=None):
+    # Define office hours for each day of the week
     office_hours = {
         "Monday": {"open": "8:00", "close": "19:00"},
         "Tuesday": {"open": "8:00", "close": "19:00"},
@@ -89,7 +83,15 @@ def get_business_hours():
         "Sunday": {"open": "10:00", "close": "15:00"},
     }
 
-    return json.dumps(office_hours)
+    # If no day is specified, return office hours for all days
+    if day is None:
+        return json.dumps(office_hours)
+    # If a specific day is provided, return office hours for that day
+    elif day in office_hours:
+        return json.dumps(office_hours[day])
+    else:
+        return "Invalid day"
+
   
 office_hours = get_business_hours()
 
@@ -122,7 +124,7 @@ def is_office_open():
     closing_time = datetime.strptime(closing_time_str, "%H:%M").time()
 
     # Check if the current time is within the office hours
-    if opening_time <= current_time <= closing_time:
+    if opening_time <= current_time < closing_time:
         return "The office is open."
     else:
         return "The office is closed."
@@ -173,6 +175,23 @@ second_completion = client.chat.completions.create(
 print("Completion response:")
 print(second_completion)
 
+# Manually call the function with different inputs
+print("Testing get_business_hours() function:")
+
+# Test case 1: Monday
+print("Testing for Monday:")
+monday_hours = get_business_hours("Monday")
+print("Monday office hours:", monday_hours)
+
+# Test case 2: Saturday
+print("Testing for Saturday:")
+saturday_hours = get_business_hours("Saturday")
+print("Saturday office hours:", saturday_hours)
+
+# Test case 3: Sunday
+print("Testing for Sunday:")
+sunday_hours = get_business_hours("Sunday")
+print("Sunday office hours:", sunday_hours)
 
 # --------------------------------------------------------------
 # Include Multiple Functions
@@ -251,7 +270,6 @@ function_descriptions_multiple = [
 
 print(function_descriptions_multiple)
 
-
 def ask_and_reply(prompt):
     """Give LLM a given prompt and get an answer."""
 
@@ -265,21 +283,21 @@ def ask_and_reply(prompt):
     return output
 
 
-# Scenario 1: Check opening time
+# Scenario 1: Are you open now?
 
-user_prompt = "Are you open at 10pm?"
+user_prompt = "Are you open right now?"
 print(ask_and_reply(user_prompt))
 
 # Get info for the next prompt
 
-origin = json.loads(output.function_call.arguments).get("loc_origin")
-destination = json.loads(output.function_call.arguments).get("loc_destination")
+day = json.loads(output.function_call.arguments).get("day")
+close = json.loads(output.function_call.arguments).get("close")
 chosen_function = eval(output.function_call.name)
-flight = chosen_function(origin, destination)
+office_hours = chosen_function(day)
 
-print(origin)
-print(destination)
-print(flight)
+print()
+print()
+print()
 
 flight_datetime = json.loads(flight).get("datetime")
 flight_airline = json.loads(flight).get("airline")
@@ -287,18 +305,18 @@ flight_airline = json.loads(flight).get("airline")
 print(flight_datetime)
 print(flight_airline)
 
-# Scenario 2: Book a new flight
+# Scenario 2: Book appointment for Friday
 
-user_prompt = f"I want to book a flight from {origin} to {destination} on {flight_datetime} with {flight_airline}"
+user_prompt = f"I want to book an appointment on Saturday"
 print(ask_and_reply(user_prompt))
 
-# Scenario 3: File a complaint
+# Scenario 3: Book appointment for next week
 
-user_prompt = "This is John Doe. I want to file a complaint about my missed flight. It was an unpleasant surprise. Email me a copy of the complaint to john@doe.com."
+user_prompt = "I am on holiday, can I book a call next week?"
 print(ask_and_reply(user_prompt))
 
 # --------------------------------------------------------------
-# Make It Conversational With Langchain
+# Make It Conversational With Langchain TBD
 # --------------------------------------------------------------
 
 llm = ChatOpenAI(model="gpt-3.5-turbo-0613", temperature=0)
@@ -306,11 +324,11 @@ llm = ChatOpenAI(model="gpt-3.5-turbo-0613", temperature=0)
 # Start a conversation with multiple requests
 
 user_prompt = """
-This is Jane Harris. I am an unhappy customer that wants you to do several things.
-First, I neeed to know when's the next flight from Amsterdam to New York.
-Please proceed to book that flight for me.
+This is Jane Doe. I am an unhappy customer that wants you to do several things.
+First, I need to know when's the next available appointment.
+Please proceed to book that appointment for me as soon as possible.
 Also, I want to file a complaint about my missed flight. It was an unpleasant surprise. 
-Email me a copy of the complaint to jane@harris.com.
+Email me a copy of the complaint to jane@doe.com.
 Please give me a confirmation after all of these are done.
 """
 
@@ -322,7 +340,7 @@ first_response = llm.predict_messages(
 
 print(first_response)
 
-# Returns the function of the second request (book_flight)
+# Returns the function of the second request (book_appointment)
 # It takes all the arguments from the prompt but not the returned information
 
 second_response = llm.predict_messages(
