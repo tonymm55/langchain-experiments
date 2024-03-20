@@ -51,6 +51,24 @@ function_descriptions = [
             },
             "required": ["day", "open", "close"],
         },
+    },
+    {
+        "name": "is_business_open",
+        "description": "Check if business is open",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "current_day": {
+                    "type": "string",
+                    "description": "Today's day, e.g. Monday",
+                },
+                "current_time": {
+                    "type": "string",
+                    "description": "Current time, e.g. 09:30",
+                },
+            },
+            "required": ["current_day", "current_time"],
+        },
     }
 ]
 
@@ -112,12 +130,16 @@ chosen_function = eval(response.function_call.name)
 office_hours=chosen_function()
 print(office_hours)
 
-def is_office_open():
+def is_business_open(current_day=None, current_time=None):
+    # If current_day and current_time are not provided, fetch them
+    if current_day is None or current_time is None:
+        now = datetime.now()
+        current_day = now.strftime("%A")
+        current_time = now.time()
+        
+        
     office_hours_json = get_business_hours()
     office_hours = json.loads(office_hours_json)
-
-    current_day = datetime.now().strftime("%A")
-    current_time = datetime.now().time()
 
     # Get the office hours for the current day
     opening_time_str, closing_time_str = office_hours[current_day]["open"], office_hours[current_day]["close"]
@@ -125,12 +147,13 @@ def is_office_open():
     closing_time = datetime.strptime(closing_time_str, "%H:%M").time()
 
     # Check if the current time is within the office hours
-    if opening_time <= current_time < closing_time:
+    if opening_time <= current_time <= closing_time:
         return "The office is open."
     else:
         return "The office is closed."
 
-print(is_office_open())
+print(is_business_open())
+print(datetime.now())
 
 # --------------------------------------------------------------
 # 4. Add function result to the prompt for a final answer
@@ -198,6 +221,11 @@ print("Sunday office hours:", sunday_hours)
 print("Testing for Sunday:")
 wednesday_hours = get_business_hours("Wednesday")
 print("Wednesday office hours:", wednesday_hours)
+
+# Test case 3: What time?
+print("Testing for open:")
+current_time = is_business_open("current_time")
+print("Is business open?:", current_time)
 
 # --------------------------------------------------------------
 # Include Multiple Functions
@@ -296,9 +324,9 @@ print(ask_and_reply(user_prompt))
 
 # Get info for the next prompt
 
-day = json.loads(output.function_call.arguments).get("day")
-close = json.loads(output.function_call.arguments).get("close")
-chosen_function = eval(output.function_call.name)
+day = json.loads(response.function_call.arguments).get("day")
+close = json.loads(response.function_call.arguments).get("close")
+chosen_function = eval(response.function_call.name)
 office_hours = chosen_function(day)
 
 print()
